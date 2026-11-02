@@ -1,0 +1,121 @@
+'use strict';
+const $=s=>document.querySelector(s);
+const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const mobileReading=matchMedia('(max-width:850px)');
+const readerHTML=s=>escapeHTML(mobileReading.matches&&typeof RussianHyphenation!=='undefined'?RussianHyphenation.text(s):s);
+let data,selected=1,showOriginal=false,currentComment=1,fontSize=19,toastTimer,loadSequence=0,home=true;
+const chapterFiles={1:"content1.json",55:"content55.json",58:"content58.json",89:"content89.json",151:"content151.json",168:"content168.json",184:"content184.json",185:"content185.json",186:"content186.json",188:"content188.json",211:"content211.json",212:"content212.json",244:"content244.json",253:"content253.json",263:"content263.json",271:"content271.json",272:"content272.json",276:"content276.json",278:"content278.json",296:"content296.json",307:"content307.json",308:"content308.json",315:"content315.json",316:"content316.json",318:"content318.json",319:"content319.json",320:"content320.json",321:"content321.json",325:"content325.json",327:"content327.json",328:"content328.json",329:"content329.json",334:"content334.json",336:"content336.json",340:"content340.json",451:"content.json",452:"content452.json",625:"content625.json",626:"content626.json",645:"content645.json",670:"content670.json",671:"content671.json",672:"content672.json",673:"content673.json",674:"content674.json",675:"content675.json",676:"content676.json",677:"content677.json"};
+const plural=(n,one,few,many)=>n%100>=11&&n%100<=14?many:n%10===1?one:n%10>=2&&n%10<=4?few:many;
+const chapterCache=new Map();
+const chapterKey=suffix=>`mb${data.chapter}-${suffix}`;
+const getSaved=k=>{try{return localStorage.getItem(k)}catch{return null}};
+const save=(k,v)=>{try{localStorage.setItem(k,String(v))}catch{}};
+const allComments=()=>data.seifim.flatMap(s=>s.comments.map(c=>({...c,seif:s.n})));
+function marked(s,interactive=true){return (interactive?readerHTML(s):escapeHTML(s)).replace(/([^\s{}]+)((?:\{\{[^}]+\}\})+)([.,;:!?]?)/g,(_,word,marks,punctuation)=>{const at=word.lastIndexOf('\u00ad'),prefix=word.slice(0,at+1),tail=word.slice(at+1);const refs=[...marks.matchAll(/\{\{([^}]+)\}\}/g)].map(([,letter])=>interactive?`<button class="note-ref" data-letter="${letter}" aria-label="Пояснение Мишны Бруры ${letter}">${letter}</button>`:`<sup class="note-ref">${letter}</sup>`).join('');return `${prefix}<span class="annotated-word">${tail}${refs}${punctuation}</span>`})}
+function original(text){return `<div class="hebrew-original" lang="he" dir="rtl">${escapeHTML(text)}</div>`}
+function biurHTML(s,printing=false){const format=printing?escapeHTML:readerHTML;return (s.biurHalakha||[]).length?`<h2 class="commentary-heading">Биур Галаха</h2><div class="biur-commentary">${s.biurHalakha.map((c,i)=>`<div class="comment" id="${printing?'print-':''}bh-${s.n}-${i}"><span class="comment-letter">*</span> <strong>${format(c.lemma)}.</strong> ${format(c.ru)}${showOriginal&&!printing?original(c.lemmaHe+' — '+c.original):''}</div>`).join('')}</div>`:''}
+function editorialHTML(s){return (s.editorialNotes||[]).length?`<div class="editorial-notes"><h3>Примечание редакции к источнику</h3>${s.editorialNotes.map(t=>`<p>${escapeHTML(t)}</p>`).join('')}</div>`:''}
+function lawHTML(s,printing=false){
+  if(s.blocks.length>1&&s.blocks.slice(1).every(b=>b.inlineWithPrevious))return `<p class="law-text">${s.blocks.map(b=>b.kind==='rema'?`<span class="rema" title="Рамо"><span class="sr-only">Рамо: </span>${marked(b.ru,!printing)}</span>`:marked(b.ru,!printing)).join(' ')}</p>`+(showOriginal&&!printing?s.blocks.map(b=>original(b.he)).join(''):'');
+  if(s.blocks.some(b=>b.inlineWithPrevious)){const groups=[];for(const b of s.blocks){if(b.inlineWithPrevious&&groups.length)groups.at(-1).push(b);else groups.push([b])}return groups.map(g=>`<p class="law-text ${g[0].kind==='rema'?'rema':''}">${g.map((b,i)=>i===0?(b.kind==='rema'?'<span class="author-label">Рамо.</span> ':'')+marked(b.ru,!printing):b.kind==='rema'?` <span class="rema" title="Рамо"><span class="sr-only">Рамо: </span>${marked(b.ru,!printing)}</span>`:' '+marked(b.ru,!printing)).join('')}</p>`+(showOriginal&&!printing?g.map(b=>original(b.he)).join(''):'' )).join('')}
+  return s.blocks.map(b=>{const parts=[58,89,253,670].includes(data.chapter)?b.ru.split('\n\n'):[b.ru];return parts.map((part,i)=>`<p class="law-text ${b.kind==='rema'?'rema':''} ${b.preserveLines?'law-lines':''}">${b.kind==='rema'&&i===0?'<span class="author-label">Рамо.</span> ':''}${marked(part,!printing)}${i===parts.length-1&&b.source?` <span class="inline-source">(${escapeHTML(b.source)})</span>`:''}</p>`).join('')+(showOriginal&&!printing?original(b.he):'')}).join('')}
+function commentsHTML(s,printing=false){if(!s.comments.length&&!s.introduction)return '';const format=printing?escapeHTML:readerHTML;return `<h2 class="commentary-heading">Мишна Брура</h2><div class="commentary">${s.introduction?`<div class="comment introduction" id="${printing?'print-':''}mb-introduction">${format(s.introduction.ru)}${showOriginal&&!printing?original(s.introduction.original):''}</div>`:''}${s.comments.map(c=>`<div class="comment" id="${printing?'print-':''}mb-${c.n}"><span class="comment-letter" lang="he" dir="rtl">${c.he}</span> <strong>${format(c.lemma)}.</strong> ${format(c.ru)}${showOriginal&&!printing?original(c.lemmaHe+' — '+c.original):''}</div>`).join('')}</div>`}
+function updateBookmark(){const yes=Number(getSaved(chapterKey('bookmark')))===selected;$('#bookmarkBtn').setAttribute('aria-pressed',String(yes));$('#bookmarkBtn').setAttribute('aria-label',yes?'Удалить закладку':'Добавить закладку')}
+function selectSeif(n,scroll=false,keepMenu=false){const s=data.seifim.find(s=>s.n===Number(n));if(!s)return;selected=s.n;save(chapterKey('last'),selected);const url=new URL(location.href);url.searchParams.set('chapter',data.chapter);url.searchParams.set('seif',selected);history.replaceState(null,'',url);
+  $('#reader').innerHTML=`<h2 class="law-title">Пункт ${s.n} · ${s.he}</h2>${lawHTML(s)}${commentsHTML(s)}${biurHTML(s)}${editorialHTML(s)}`;
+  $('#seifLabel').textContent=`ПУНКТ ${s.n} · ${s.he}`;
+  document.querySelectorAll('[data-select]').forEach(b=>{const active=Number(b.dataset.select)===selected;b.classList.toggle('selected',active);if(b.getAttribute('role')==='tab')b.setAttribute('aria-selected',String(active))});
+  $('#seifSelect').value=String(selected);
+  $('#previousBtn').disabled=selected===data.seifim[0].n;$('#nextBtn').disabled=selected===data.seifim.at(-1).n;
+  $('#previousBtn').textContent=selected>1?`← Пункт ${selected-1}`:'← Предыдущий';$('#nextBtn').textContent=selected<data.seifim.length?`Пункт ${selected+1} →`:'Следующий →';
+  $('#currentRangeLabel').textContent=`Только пункт ${selected}`;updateExports();updateBookmark();if(!keepMenu)closeMenu();
+  if(scroll)$('#reader').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function openComment(n){const c=allComments().find(c=>c.n===Number(n));if(!c)return;currentComment=c.n;
+  $('#commentContent').innerHTML=`<h2><span class="comment-letter" lang="he" dir="rtl">${c.he}</span> ${readerHTML(c.lemma)}</h2><p class="dialog-text">${readerHTML(c.ru)}</p>${showOriginal?original(c.lemmaHe+' — '+c.original):''}`;
+  $('#commentPrevious').disabled=c.n===1;$('#commentNext').disabled=c.n===allComments().at(-1).n;
+  if(!$('#commentDialog').open)$('#commentDialog').showModal();
+  $('#commentDialog').scrollTop=0;
+}
+function goToComment(n){const c=allComments().find(c=>c.n===Number(n));if(!c)return;selectSeif(c.seif);const target=$('#mb-'+c.n);target.scrollIntoView({behavior:'smooth',block:'center'});target.classList.add('show-flash');setTimeout(()=>target.classList.remove('show-flash'),2200)}
+function notify(text){clearTimeout(toastTimer);$('#toast').textContent=text;$('#toast').hidden=false;toastTimer=setTimeout(()=>$('#toast').hidden=true,2600)}
+function setFont(size){fontSize=Math.max(15,Math.min(26,size));document.documentElement.style.setProperty('--reader-size',fontSize+'px');save('mb451-font',fontSize);$('#fontDown').disabled=fontSize===15;$('#fontUp').disabled=fontSize===26}
+function updateExports(){const range=$('input[name="range"]:checked')?.value||'all';const suffix=range==='all'?'full':String(selected);const available=false;for(const [id,ext] of [['pdfLink','pdf'],['wordLink','docx']]){const link=$('#'+id);link.hidden=!available;if(available)link.href=`downloads/Mishna_Berura_${data.chapter}_${suffix}.${ext}`;else link.removeAttribute('href')}const label=available?'Печать и файлы':'Печать';$('#exportBtn span').textContent=label;$('#exportBtn').setAttribute('aria-label',label);$('#exportDialog h2').textContent=label;$('.export-options').style.gridTemplateColumns=available?'':'1fr'}
+function makePrint(){if(!data)return;const all=$('input[name="range"]:checked')?.value!=='current';const seifs=data.seifim.filter(s=>all||s.n===selected);$('#printRoot').innerHTML=`<h1>Мишна Брура</h1><p class="print-subtitle">Орах хаим · Глава ${data.chapter} · ${escapeHTML(data.chapterHe)}<br>${escapeHTML(data.subject)}</p>${seifs.map(s=>`<section><h2 class="law-title">Пункт ${s.n} · ${s.he}</h2>${lawHTML(s,true)}${commentsHTML(s,true)}${biurHTML(s,true)}${editorialHTML(s)}</section>`).join('')}<div class="print-sources">Источники: Шульхан Арух и Рамо, Орах хаим ${data.chapter}:1–${data.seifim.length}; Мишна Брура ${data.chapter}, подпункты ${allComments()[0].he}–${allComments().at(-1).he}; Биур Галаха ${data.chapter}.${data.sources.map(s=>`<a href="${s.url}">${escapeHTML(s.label)}</a>`).join('')}</div>`}
+function closeMenu(){$('#sidebar').classList.remove('open');$('#shade').hidden=true;$('#menuBtn').setAttribute('aria-expanded','false')}
+function showHome(){home=true;$('#homePage').hidden=false;$('#chapterPage').hidden=true;$('#main').classList.add('home-active');$('#chapterSection').textContent='Русское издание';$('#chapterCrumb').hidden=true;$('#chapterCrumbDivider').hidden=true;$('#termsBtn').hidden=true;$('#sourcesBtn').hidden=true;$('#chapterSideSummary').hidden=true;$('#seifNav').hidden=true;document.querySelectorAll('[data-chapter]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');b.setAttribute('aria-expanded','false')});document.title='Мишна Брура — русское издание';history.replaceState(null,'',location.pathname);closeMenu();window.scrollTo({top:0,behavior:'smooth'})}
+function setChapterExpanded(expanded){
+  $('#seifNav').hidden=!expanded;
+  document.querySelectorAll('[data-chapter]').forEach(b=>b.setAttribute('aria-expanded',String(expanded&&data&&Number(b.dataset.chapter)===data.chapter)));
+}
+function search(){const q=$('#searchInput').value.trim().toLocaleLowerCase('ru');const container=$('#searchResults');if(q.length<2){container.innerHTML=q?'<p>Введите хотя бы две буквы.</p>':'';return}
+  const rows=[];for(const s of data.seifim){if(s.introduction&&s.introduction.ru.toLocaleLowerCase('ru').includes(q))rows.push({seif:s.n,intro:true,label:`Пункт ${s.n} · Вступление Мишны Бруры`,text:s.introduction.ru});for(const b of s.blocks){const text=b.ru.replace(/\{\{[^}]+\}\}/g,'');if(text.toLocaleLowerCase('ru').includes(q))rows.push({seif:s.n,label:`Пункт ${s.n} · ${b.kind==='rema'?'Рамо':'Шульхан Арух'}`,text})}for(const c of s.comments){const text=c.lemma+'. '+c.ru;if(text.toLocaleLowerCase('ru').includes(q))rows.push({seif:s.n,n:c.n,label:`Пункт ${s.n} · Мишна Брура · ${c.he}`,text})}for(const [i,c] of (s.biurHalakha||[]).entries()){const text=c.lemma+'. '+c.ru;if(text.toLocaleLowerCase('ru').includes(q))rows.push({seif:s.n,bh:i,label:`Пункт ${s.n} · Биур Галаха`,text})}}
+  container.innerHTML=rows.length?`<p>Найдено: ${rows.length}${rows.length>50?' · Показаны первые 50':''}</p>`+rows.slice(0,50).map(r=>{const at=r.text.toLocaleLowerCase('ru').indexOf(q);const start=Math.max(0,at-55);return `<button data-result-seif="${r.seif}" ${r.n?`data-result-comment="${r.n}"`:''} ${r.bh!==undefined?`data-result-bh="${r.bh}"`:''} ${r.intro?'data-result-intro="true"':''}>${escapeHTML(r.label)}<small>${start?'…':''}${escapeHTML(r.text.slice(start,start+180))}…</small></button>`}).join(''):'<p>В главе совпадений не найдено.</p>';
+}
+async function loadChapter(chapter,initialSeif,expand=false){
+  const request=++loadSequence;
+  if(!chapterFiles[chapter])chapter=451;
+  let next=chapterCache.get(Number(chapter));
+  if(!next){const r=await fetch(chapterFiles[chapter]);if(!r.ok)throw Error('content');next=await r.json();if(next.chapter!==Number(chapter))throw Error('chapter');chapterCache.set(Number(chapter),next)}
+  if(request!==loadSequence)return;
+  data=next;home=false;currentComment=1;save('mb-current-chapter',data.chapter);$('#homePage').hidden=true;$('#chapterPage').hidden=false;$('#main').classList.remove('home-active');$('#chapterCrumb').hidden=false;$('#chapterCrumbDivider').hidden=false;$('#sourcesBtn').hidden=false;$('#chapterSideSummary').hidden=false;
+  const comments=allComments();
+  $('#chapterTitle').textContent=data.subject;
+  $('#chapterSeal').innerHTML=`${escapeHTML(data.chapterHe)}<small>ГЛАВА ${data.chapter}</small>`;
+  $('#chapterIntro').textContent=`${data.seifim.length} ${plural(data.seifim.length,'пункт','пункта','пунктов')} · ${comments.length} ${plural(comments.length,'пояснение','пояснения','пояснений')} · Иврит и русский перевод`;
+  $('#chapterSection').textContent=data.chapter>=670&&data.chapter<=677?'Ханука':[625,626,645].includes(data.chapter)?'Суккот':data.chapter===1?'Ежедневные законы':data.chapter===58?'Чтение «Шма»':[55,89].includes(data.chapter)?'Молитва':data.chapter===151?'Синагога':[168,184,185,186,188,211,212].includes(data.chapter)?'Благословения':[244,253,263,271,272,276,278,296,307,308,315,316,318,319,320,321,325,327,328,329,334,336,340].includes(data.chapter)?'Шаббат':'Песах';
+  $('#searchInput').placeholder=data.chapter===625?'Например, облака Славы':data.chapter===626?'Например, дерево':data.chapter===645?'Например, тиомет':data.chapter===671?'Например, светильник':data.chapter===670?'Например, трапеза':data.chapter===1?'Например, пробуждение':data.chapter===55?'Например, миньян':data.chapter===58?'Например, восход':data.chapter===89?'Например, до молитвы':data.chapter===151?'Например, синагога':data.chapter===168?'Например, хлеб':data.chapter===184?'Например, место трапезы':data.chapter===185?'Например, вслух':data.chapter===186?'Например, дети':data.chapter===188?'Например, Рце':data.chapter===211?'Например, семь видов':data.chapter===212?'Например, второстепенное':data.chapter===253?'Например, возвращение':data.chapter===321?'Например, размалывание':data.chapter===320?'Например, выжимание':data.chapter===319?'Например, отбор':data.chapter===318?'Например, подогрев':data.chapter===316?'Например, ловля':data.chapter===315?'Например, шатёр':data.chapter===308?'Например, мукце':data.chapter===263?'Например, зажигание':data.chapter===271?'Например, бокал кидуша':data.chapter===272?'Например, вино':data.chapter===276?'Например, светильник':data.chapter===278?'Например, больной':data.chapter===296?'Например, авдала':data.chapter===307?'Например, намёк':data.chapter===325?'Например, тхум':data.chapter===327?'Например, масло':data.chapter===328?'Например, лечение':data.chapter===329?'Например, опасность':data.chapter===334?'Например, пожар':data.chapter===340?'Например, письмо':data.chapter===336?'Например, растения':data.chapter===244?'Например, подряд':'Например, глиняная посуда';
+  $('#chapterCrumb').textContent=data.chapter;
+  $('#termsBtn').hidden=!(data.terms||[]).length;
+  $('#chapterBottom').textContent=`Орах хаим · ${data.chapter}`;
+  $('#chapterFooter').textContent=`Русское издание · глава ${data.chapter} целиком`;
+  $('#chapterSideLabel').textContent=`${data.chapterHe} · ${data.chapter}`;
+  $('#seifCount').textContent=`из ${data.seifim.length}`;
+  $('#searchLabel').textContent=`Поиск по всей главе ${data.chapter}`;
+  $('#commentChapterLabel').textContent=`МИШНА БРУРА · ГЛАВА ${data.chapter}`;
+  $('#allRangeLabel').textContent=`Вся глава ${data.chapter} · ${data.seifim.length} ${plural(data.seifim.length,'пункт','пункта','пунктов')}`;
+  document.title=`Мишна Брура · ${data.chapter} · Русское издание`;
+  document.querySelectorAll('[data-chapter]').forEach(b=>{const yes=Number(b.dataset.chapter)===data.chapter;b.classList.toggle('selected',yes);b.setAttribute('aria-pressed',String(yes))});
+  $('.seif-nav').innerHTML=data.seifim.map(s=>`<button data-select="${s.n}"><span lang="he">${s.he}</span>Пункт ${s.n}<small>${escapeHTML(s.topic)}</small></button>`).join('');
+  document.querySelector(`[data-chapter="${data.chapter}"]`).after($('#seifNav'));
+  setChapterExpanded(expand);
+  $('#seifSelect').innerHTML=data.seifim.map(s=>`<option value="${s.n}">Пункт ${s.n} · ${s.he}</option>`).join('');
+  $('#searchPanel').hidden=true;$('#searchBtn').setAttribute('aria-expanded','false');$('#searchInput').value='';$('#searchResults').innerHTML='';
+  $('#commentDialog').close();
+  const saved=Number(initialSeif)||Number(getSaved(chapterKey('last')));
+  selectSeif(data.seifim.some(s=>s.n===saved)?saved:1,false,expand);
+}
+async function init(){try{
+  document.querySelectorAll('[data-chapter]').forEach(b=>{b.setAttribute('aria-expanded','false');b.setAttribute('aria-controls','seifNav')});
+  const params=new URLSearchParams(location.search);
+  const requested=Number(params.get('chapter'));
+  if(requested&&chapterFiles[requested])await loadChapter(requested,params.get('seif'));else showHome();
+  setFont(Number(getSaved('mb451-font'))||(innerWidth<550?18:19));
+  $('#seifSelect').onchange=e=>selectSeif(e.target.value);
+  $('.seif-nav').onclick=e=>{const b=e.target.closest('[data-select]');if(b)selectSeif(b.dataset.select)};
+  document.querySelectorAll('[data-chapter]').forEach(b=>b.onclick=async()=>{if(!home&&data&&Number(b.dataset.chapter)===data.chapter){setChapterExpanded($('#seifNav').hidden);return}try{await loadChapter(Number(b.dataset.chapter),undefined,true);window.scrollTo({top:0,behavior:'smooth'})}catch{notify('Не удалось загрузить главу. Проверьте соединение.')}});
+  $('#reader').addEventListener('click',e=>{const b=e.target.closest('[data-letter]');if(b){const c=allComments().find(c=>c.he===b.dataset.letter);if(c)openComment(c.n)}});
+  $('#fontDown').onclick=()=>setFont(fontSize-1);$('#fontUp').onclick=()=>setFont(fontSize+1);
+  $('#previousBtn').onclick=()=>selectSeif(selected-1,true);$('#nextBtn').onclick=()=>selectSeif(selected+1,true);
+  $('#originalBtn').onclick=()=>{showOriginal=!showOriginal;$('#originalBtn').setAttribute('aria-pressed',String(showOriginal));$('#originalBtn').textContent=showOriginal?'Скрыть оригинал на иврите':'Показать оригинал на иврите';selectSeif(selected)};
+  $('#bookmarkBtn').onclick=()=>{const exists=Number(getSaved(chapterKey('bookmark')))===selected;save(chapterKey('bookmark'),exists?'':selected);updateBookmark();notify(exists?'Закладка удалена':`Закладка на пункте ${selected} сохранена`)};
+  $('#exportBtn').onclick=()=>{updateExports();$('#exportDialog').showModal()};
+  document.querySelectorAll('input[name="range"]').forEach(r=>r.onchange=updateExports);
+  $('#printBtn').onclick=()=>{makePrint();$('#exportDialog').close();requestAnimationFrame(()=>window.print())};
+  window.addEventListener('beforeprint',makePrint);
+  $('#commentPrevious').onclick=()=>openComment(currentComment-1);$('#commentNext').onclick=()=>openComment(currentComment+1);
+  $('#goComment').onclick=()=>{$('#commentDialog').close();goToComment(currentComment)};
+  document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.close).close());
+  document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()}}));
+  $('#menuBtn').setAttribute('aria-expanded','false');$('#menuBtn').onclick=()=>{const isOpen=$('#sidebar').classList.toggle('open');$('#shade').hidden=!isOpen;$('#menuBtn').setAttribute('aria-expanded',String(isOpen))};$('#shade').onclick=closeMenu;
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
+  mobileReading.addEventListener('change',()=>{if(home||!data)return;const top=window.scrollY;selectSeif(selected);if($('#commentDialog').open)openComment(currentComment);window.scrollTo({top})});
+  document.addEventListener('copy',e=>{const selection=window.getSelection();if(!e.clipboardData||!selection?.rangeCount)return;const text=selection.toString();if(!text.includes('\u00ad'))return;e.clipboardData.setData('text/plain',text.replace(/\u00ad/g,''));e.preventDefault()});
+  $('.brand').onclick=e=>{e.preventDefault();showHome()};
+  $('#searchBtn').onclick=()=>{const panel=$('#searchPanel');panel.hidden=!panel.hidden;$('#searchBtn').setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)$('#searchInput').focus()};
+  $('#searchInput').oninput=search;$('#searchResults').onclick=e=>{const b=e.target.closest('[data-result-seif]');if(!b)return;$('#searchPanel').hidden=true;if(b.dataset.resultComment){selectSeif(b.dataset.resultSeif);openComment(b.dataset.resultComment)}else {selectSeif(b.dataset.resultSeif,true);if(b.dataset.resultBh!==undefined)document.getElementById(`bh-${selected}-${b.dataset.resultBh}`)?.scrollIntoView({behavior:'smooth',block:'center'});if(b.dataset.resultIntro)document.getElementById('mb-introduction')?.scrollIntoView({behavior:'smooth',block:'center'})}};
+  $('#termsBtn').onclick=()=>{$('#infoContent').innerHTML=`<h2>Словарь терминов</h2><p>Редакционные пояснения терминов. Они приведены отдельно от перевода авторского текста.</p>${data.terms.map(t=>`<h3>${escapeHTML(t.term)} <span lang="he" dir="rtl">${t.he}</span></h3><p>${escapeHTML(t.definition)}</p>`).join('')}`;closeMenu();$('#infoDialog').showModal()};
+  $('#sourcesBtn').onclick=()=>{$('#infoContent').innerHTML=`<h2>Источники перевода</h2><p>Шульхан Арух и Рамо: все ${data.seifim.length} ${plural(data.seifim.length,'пункт','пункта','пунктов')} главы ${data.chapter}. Мишна Брура: ${allComments().length} ${plural(allComments().length,'подпункт','подпункта','подпунктов')}, ${allComments()[0].he}–${allComments().at(-1).he}. Биур Галаха: все статьи к этой главе. Буквенные отсылки и ссылки внутри авторского текста сохранены.</p>${data.sources.map(s=>`<a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHTML(s.label)} ↗</a>`).join('')}<p>Печатная версия передаёт структуру текстов и связи между ними. Она не является факсимильным воспроизведением страниц исторического издания.</p>`;closeMenu();$('#infoDialog').showModal()};
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+}catch(e){$('#reader').innerHTML='<p class="law-text">Не удалось загрузить текст. Обновите страницу, когда появится соединение.</p>'}}
+init();
