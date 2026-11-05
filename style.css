@@ -46,3 +46,7 @@ dialog{color:var(--ink);background:#fffef9;border:1px solid #d7dacc;border-radiu
 .he-label{display:block;font-family:UISans,Arial,sans-serif;font-size:.86em;font-weight:700;letter-spacing:.2px;color:#5d6b53;margin-bottom:3px}.he-label-rema{color:var(--sage)}
 .law-pair>.law-text+.hebrew-original{margin-top:-4px}.law-pair>.hebrew-original:last-child{margin-bottom:34px}
 @media print{#printRoot .he-label{font:700 8.5pt UISans,Arial,sans-serif;color:black;display:block;margin-bottom:1mm}#printRoot .law-pair{break-inside:avoid;margin-bottom:3mm}#printRoot .law-pair>.hebrew-original:last-child{margin-bottom:3mm}}
+
+.law-pair.has-he{border:1px solid #cfd6c4;border-radius:8px;background:#fcfdf9;padding:16px 18px 14px;margin:0 0 18px}.law-pair.has-he.is-rema{background:#eef3e8;border-color:#b9c7aa}
+.law-pair.has-he>.law-text{margin-bottom:0}.law-pair.has-he>.law-text+.hebrew-original{margin-top:12px}.law-pair.has-he>.hebrew-original:last-child{margin-bottom:0}
+@media print{#printRoot .law-pair.has-he{border:.5pt solid #777;border-radius:2mm;background:none;padding:3mm 4mm;margin-bottom:4mm}}
