@@ -40,3 +40,5 @@ dialog{color:var(--ink);background:#fffef9;border:1px solid #d7dacc;border-radiu
 @media(max-width:400px){.topbar{padding:0 10px;gap:6px}.back-btn{padding:0 8px;gap:4px}.topbar .crumb{gap:4px;font-size:9px}.bsd{font-size:13px}}
 
 @media print{#printRoot .hebrew-original{direction:rtl;text-align:right;font:10.5pt/1.7 'Times New Roman','David','Arial Hebrew',serif;color:black;border-top:.5pt dotted #777;margin:2mm 0 3mm;padding-top:2mm;white-space:pre-line;break-inside:avoid}#printRoot.with-he .commentary,#printRoot.with-he .biur-commentary{column-count:1}#printRoot.with-he .comment{margin-bottom:4mm}}
+
+.reading-meta .he-toggles{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}.reading-meta .he-toggles button{text-align:right;cursor:pointer}@media(max-width:550px){.reading-meta{align-items:flex-start;gap:10px}}
