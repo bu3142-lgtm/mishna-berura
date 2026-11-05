@@ -42,3 +42,7 @@ dialog{color:var(--ink);background:#fffef9;border:1px solid #d7dacc;border-radiu
 @media print{#printRoot .hebrew-original{direction:rtl;text-align:right;font:10.5pt/1.7 'Times New Roman','David','Arial Hebrew',serif;color:black;border-top:.5pt dotted #777;margin:2mm 0 3mm;padding-top:2mm;white-space:pre-line;break-inside:avoid}#printRoot.with-he .commentary,#printRoot.with-he .biur-commentary{column-count:1}#printRoot.with-he .comment{margin-bottom:4mm}}
 
 .reading-meta .he-toggles{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}.reading-meta .he-toggles button{text-align:right;cursor:pointer}@media(max-width:550px){.reading-meta{align-items:flex-start;gap:10px}}
+
+.he-label{display:block;font-family:UISans,Arial,sans-serif;font-size:.86em;font-weight:700;letter-spacing:.2px;color:#5d6b53;margin-bottom:3px}.he-label-rema{color:var(--sage)}
+.law-pair>.law-text+.hebrew-original{margin-top:-4px}.law-pair>.hebrew-original:last-child{margin-bottom:34px}
+@media print{#printRoot .he-label{font:700 8.5pt UISans,Arial,sans-serif;color:black;display:block;margin-bottom:1mm}#printRoot .law-pair{break-inside:avoid;margin-bottom:3mm}#printRoot .law-pair>.hebrew-original:last-child{margin-bottom:3mm}}
