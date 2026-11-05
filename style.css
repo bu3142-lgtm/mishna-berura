@@ -50,3 +50,6 @@ dialog{color:var(--ink);background:#fffef9;border:1px solid #d7dacc;border-radiu
 .law-pair.has-he{border:1px solid #cfd6c4;border-radius:8px;background:#fcfdf9;padding:16px 18px 14px;margin:0 0 18px}.law-pair.has-he.is-rema{background:#eef3e8;border-color:#b9c7aa}
 .law-pair.has-he>.law-text{margin-bottom:0}.law-pair.has-he>.law-text+.hebrew-original{margin-top:12px}.law-pair.has-he>.hebrew-original:last-child{margin-bottom:0}
 @media print{#printRoot .law-pair.has-he{border:.5pt solid #777;border-radius:2mm;background:none;padding:3mm 4mm;margin-bottom:4mm}}
+
+.share-button{display:flex;align-items:center;gap:6px;padding:7px 12px;margin-left:8px;background:#f3f6ee;color:#4b6250;border:1px solid #b9c8b2;border-radius:999px;font-size:10px;white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s,transform .1s}.share-button svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.share-button:hover{background:#e4ebdc;border-color:#9db293}.share-button:active{transform:scale(.97)}
+@media(max-width:550px){.share-button{padding:7px 9px;margin-left:4px}.share-button span{display:none}}
