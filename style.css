@@ -53,3 +53,14 @@ dialog{color:var(--ink);background:#fffef9;border:1px solid #d7dacc;border-radiu
 
 .share-button{display:flex;align-items:center;gap:6px;padding:7px 12px;margin-left:8px;background:#f3f6ee;color:#4b6250;border:1px solid #b9c8b2;border-radius:999px;font-size:10px;white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s,transform .1s}.share-button svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.share-button:hover{background:#e4ebdc;border-color:#9db293}.share-button:active{transform:scale(.97)}
 @media(max-width:550px){.share-button{padding:7px 9px;margin-left:4px}.share-button span{display:none}}
+/* Кнопка поддержки в шапке: рука и падающая монетка */
+.donate-btn{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 13px 0 8px;margin-left:auto;border:1px solid var(--line);border-radius:19px;background:var(--paper);color:var(--accent);font:inherit;font-size:13px;line-height:1;cursor:pointer;white-space:nowrap;flex-shrink:0}.donate-btn+.bsd{margin-left:0}.donate-btn:hover{background:#f1ede2}.donate-btn:focus-visible{outline:2px solid var(--sage);outline-offset:2px}.donate-btn svg{width:50px;height:43px;overflow:visible}
+.donate-btn .coin{transform-box:fill-box;transform-origin:center;animation:coinDrop 3.2s ease-in infinite}.donate-btn .hand{transform-box:fill-box;transform-origin:center;animation:handCatch 3.2s ease-in infinite}
+@keyframes coinDrop{0%{transform:translateY(-16px);opacity:0}12%{opacity:1}52%{transform:translateY(0);opacity:1}60%{transform:translateY(0) scale(.92);opacity:1}68%{transform:translateY(0) scale(.5);opacity:0}100%{transform:translateY(0) scale(.5);opacity:0}}
+@keyframes handCatch{0%,50%{transform:translateY(0)}56%{transform:translateY(1.6px)}64%,100%{transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.donate-btn .coin,.donate-btn .hand{animation:none}}
+.donate-dialog{width:520px}.donate-dialog h2{font:27px BookSerif;margin:16px 0}.donate-label{display:block;font-size:11px;color:#858776;margin:18px 0 6px}.donate-field{display:block;width:100%;box-sizing:border-box;font:15px UISans,Arial,sans-serif;padding:11px 13px;border:1px solid #cbd0c2;background:#fffef9;border-radius:4px;color:var(--ink)}textarea.donate-field{resize:vertical;min-height:110px}.donate-field:focus{outline:2px solid var(--sage);outline-offset:1px}.donate-send{display:block;margin-top:22px;padding:13px 16px;text-align:center;text-decoration:none;background:#4b6250;color:#fff;border-radius:4px;font-size:14px;cursor:pointer}.donate-send:hover{background:#38513d}
+@media(max-width:850px){.donate-btn{height:40px;padding:0 11px 0 4px}}
+@media(max-width:550px){.donate-btn{padding:0 4px;gap:0}.donate-btn span{display:none}.donate-btn svg{width:44px;height:38px}}
+@media(max-width:400px){.donate-btn{padding:0 2px}.donate-btn svg{width:38px;height:33px}}
+@media print{.donate-btn,.donate-dialog{display:none!important}}
