@@ -1,6 +1,6 @@
 (function(){
   // Номер для WhatsApp — только цифры, с кодом страны, без «+».
-  var WA_NUMBER='9725475759292';
+  var WA_NUMBER='972547579292';
   var btn=document.getElementById('donateBtn');
   if(!btn)return;
   var dlg=document.createElement('dialog');
