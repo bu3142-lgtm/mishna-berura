@@ -108,7 +108,7 @@
       if (b.kind === 'rema') { const m = document.createElement('b'); m.textContent = 'הגה:'; he.append(m, ' '); }
       he.append(b.he);
     });
-    sec.append(he);
+    if (typeof showHeLaw === 'undefined' || showHeLaw) sec.append(he);   // кнопка «Скрыть иврит»
     // русский — весь пункт подряд; Рамо отмечено словом «Рамо.»
     const html = s.blocks.map(b => (b.kind === 'rema' ? '<strong>Рамо.</strong> ' : '') + (typeof marked === 'function' ? marked(String(b.ru), true) : esc(b.ru)) + (b.source ? ` <span class="inline-source">(${esc(b.source)})</span>` : '')).join(' ');
     html.split('\n\n').forEach(part => { const p = document.createElement('p'); p.className = 'law-text'; p.innerHTML = part; sec.append(p); });
