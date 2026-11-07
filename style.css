@@ -93,3 +93,6 @@ body:has(#vxBar:not([hidden])) #main{padding-bottom:110px}
 .vx-unit .vx-yes{background:#4f8a62;color:#fff;border-color:#4f8a62}
 .vx-time{font-variant-numeric:tabular-nums}
 .vx-law .vx-he{color:var(--ink);font-size:1.3em;line-height:2}
+.seif-nav [data-select]{position:relative}
+.vx-mark{position:absolute;right:10px;top:8px;font-size:13px;line-height:1}
+.vx-none{font:13px/1.3 UISans,system-ui,sans-serif;color:var(--muted)}

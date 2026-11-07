@@ -19,16 +19,16 @@
   const LKEY = ch => 'mb-voice-list-' + ch;
   function cachedList(ch) {
     if (lists.has(ch)) return;
-    try { const j = JSON.parse(localStorage.getItem(LKEY(ch))); if (j && j.items) lists.set(ch, j); } catch (e) { }
+    try { const j = JSON.parse(localStorage.getItem(LKEY(ch))); if (j && j.items) lists.set(ch, { items: j.items }); } catch (e) { }
   }
-  function storeList(ch) { try { localStorage.setItem(LKEY(ch), JSON.stringify(lists.get(ch))); } catch (e) { } }
+  function storeList(ch) { try { localStorage.setItem(LKEY(ch), JSON.stringify({ items: lists.get(ch).items })); } catch (e) { } }
   function refreshList(ch) {
     if (loading.has(ch)) return loading.get(ch);
     const p = (async () => {
       try {
         const r = await fetch(`${VOICE_URL}?action=list&chapter=${ch}`);
         const j = await r.json();
-        if (j.ok) { lists.set(ch, { items: j.items }); storeList(ch); }
+        if (j.ok) { lists.set(ch, { items: j.items, fresh: true }); storeList(ch); }
       } catch (e) { } finally { loading.delete(ch); }
     })();
     loading.set(ch, p);
@@ -45,8 +45,8 @@
   /* ---------- единицы озвучки на странице ---------- */
   function sifUnits(data, s) {
     const u = [];
-    if (s.blocks.some(b => b.kind !== 'rema')) u.push({ key: `${data.chapter}_${s.n}_sa`, label: 'Шулхан Арух' });
-    if (s.blocks.some(b => b.kind === 'rema')) u.push({ key: `${data.chapter}_${s.n}_rema`, label: 'Рамо' });
+    const hasRema = s.blocks.some(b => b.kind === 'rema');
+    u.push({ key: `${data.chapter}_${s.n}_law`, label: hasRema ? 'Шулхан Арух и Рамо' : 'Шулхан Арух' });
     return u;
   }
   function allKeys(data) {
@@ -75,13 +75,13 @@
     cachedList(ch);
     const panel = document.createElement('div'); panel.className = 'vx-panel';
     if (REC) { const pr = document.createElement('div'); pr.className = 'vx-progress'; panel.append(pr); }
+    else { const no = document.createElement('div'); no.className = 'vx-none'; no.hidden = true; no.textContent = 'Озвучки этого пункта пока нет'; panel.append(no); }
     if (!REC) sifUnits(data, s).forEach(u => panel.append(mk('div', 'vx-unit', u.key, u.label, s.n)));
     const title = $('.law-title', reader);
     if (title) title.after(panel);
     if (REC) {
       reader.querySelectorAll('.law-pair').forEach(e => e.remove());
-      const secs = ['sa', 'rema'].map(k => lawSection(data, s, k)).filter(Boolean);
-      panel.after(...secs);
+      panel.after(lawSection(data, s));
     }
     reader.querySelectorAll('.comment').forEach(el => {
       let key, label;
@@ -97,20 +97,21 @@
   }
 
   /* Страница записи: весь Шулхан Арух и всё Рамо пункта — каждый одним блоком (иврит + перевод) */
-  function lawSection(data, s, kind) {
-    const bs = s.blocks.filter(b => (kind === 'rema') === (b.kind === 'rema'));
-    if (!bs.length) return null;
-    const key = `${data.chapter}_${s.n}_${kind}`, label = kind === 'rema' ? 'Рамо' : 'Шулхан Арух';
-    const sec = document.createElement('section'); sec.className = 'vx-law' + (kind === 'rema' ? ' is-rema' : '');
-    sec.append(mk('div', 'vx-unit vx-law-head', key, label, s.n));
+  function lawSection(data, s) {
+    const u = sifUnits(data, s)[0], hasRema = s.blocks.some(b => b.kind === 'rema');
+    const sec = document.createElement('section'); sec.className = 'vx-law';
+    sec.append(mk('div', 'vx-unit vx-law-head', u.key, u.label, s.n));
+    // иврит — весь пункт подряд, как в книгах (слова Рамо начинаются с «הגה:»)
     const he = document.createElement('div'); he.className = 'hebrew-original vx-he'; he.lang = 'he'; he.dir = 'rtl';
-    he.textContent = bs.map(b => b.he).join(' ');
+    s.blocks.forEach((b, i) => {
+      if (i) he.append(' ');
+      if (b.kind === 'rema') { const m = document.createElement('b'); m.textContent = 'הגה:'; he.append(m, ' '); }
+      he.append(b.he);
+    });
     sec.append(he);
-    bs.forEach(b => String(b.ru).split('\n\n').forEach((part, i, arr) => {
-      const p = document.createElement('p'); p.className = 'law-text' + (kind === 'rema' ? ' rema' : '');
-      p.innerHTML = (typeof marked === 'function' ? marked(part, true) : esc(part)) + (i === arr.length - 1 && b.source ? ` <span class="inline-source">(${esc(b.source)})</span>` : '');
-      sec.append(p);
-    }));
+    // русский — весь пункт подряд; Рамо отмечено словом «Рамо.»
+    const html = s.blocks.map(b => (b.kind === 'rema' ? '<strong>Рамо.</strong> ' : '') + (typeof marked === 'function' ? marked(String(b.ru), true) : esc(b.ru)) + (b.source ? ` <span class="inline-source">(${esc(b.source)})</span>` : '')).join(' ');
+    html.split('\n\n').forEach(part => { const p = document.createElement('p'); p.className = 'law-text'; p.innerHTML = part; sec.append(p); });
     return sec;
   }
   function comment(c) {
@@ -124,7 +125,12 @@
   function paintAll() {
     document.querySelectorAll('.vx-unit').forEach(paint);
     document.querySelectorAll('.vx-panel').forEach(p => {
-      p.hidden = !REC && ![...p.querySelectorAll('.vx-unit')].some(u => !u.hidden);
+      if (!REC) {
+        const vis = [...p.querySelectorAll('.vx-unit')].some(u => !u.hidden), l = ctx && lists.get(ctx.data.chapter);
+        const absent = !!(l && l.fresh && !seifKeys(ctx.data, ctx.s).some(k => itemFor(k)));
+        const no = $('.vx-none', p); if (no) no.hidden = !(absent && !vis);
+        p.hidden = !vis && !absent;
+      }
       const pr = $('.vx-progress', p);
       if (pr && ctx) {
         const keys = allKeys(ctx.data), got = keys.filter(k => itemFor(k)).length;
@@ -132,6 +138,25 @@
       }
     });
     paintBar();
+    if (ctx) markMenu(ctx.data);
+  }
+  function seifKeys(data, s) {
+    const k = sifUnits(data, s).map(u => u.key);
+    if (s.introduction) k.push(`${data.chapter}_${s.n}_intro`);
+    s.comments.forEach(c => k.push(`${data.chapter}_mb${c.n}`));
+    return k;
+  }
+  /* значок 🔊 у пунктов, где есть озвучка */
+  function markMenu(data) {
+    const has = s => seifKeys(data, s).some(k => itemFor(k));
+    document.querySelectorAll('.seif-nav [data-select]').forEach(b => {
+      const s = data.seifim.find(x => x.n === Number(b.dataset.select)); if (!s) return;
+      let m = $('.vx-mark', b);
+      if (has(s)) { if (!m) { m = document.createElement('span'); m.className = 'vx-mark'; m.textContent = '🔊'; m.title = 'Есть озвучка'; b.append(m); } }
+      else if (m) m.remove();
+    });
+    const sel = $('#seifSelect');
+    if (sel) [...sel.options].forEach(o => { const s = data.seifim.find(x => x.n === Number(o.value)); if (s) o.textContent = o.textContent.replace(/ 🔊$/, '') + (has(s) ? ' 🔊' : ''); });
   }
   function paint(el) {
     const key = el.dataset.vkey, c = $('.vx-ctrls', el), it = itemFor(key);
