@@ -85,3 +85,11 @@ dialog{color:var(--ink);background:#fffef9;border:1px solid #d7dacc;border-radiu
 #vxBar .vx-yes{background:#4f8a62;color:#fff;border-color:#4f8a62}
 #vxBar .vx-live{color:#ff8a80}
 body:has(#vxBar:not([hidden])) #main{padding-bottom:110px}
+.vx-law{margin:0 0 22px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.vx-law.is-rema{background:#faf7ef}
+.vx-law-head{margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.vx-law-head .vx-label{font-size:16px}
+.vx-law .vx-he{margin:0 0 12px;padding:0;border:0;font-size:1.12em;line-height:1.9}
+.vx-unit .vx-yes{background:#4f8a62;color:#fff;border-color:#4f8a62}
+.vx-time{font-variant-numeric:tabular-nums}
+.vx-law .vx-he{color:var(--ink);font-size:1.3em;line-height:2}

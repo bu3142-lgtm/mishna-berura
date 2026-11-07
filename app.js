@@ -39,6 +39,7 @@ function selectSeif(n,scroll=false,keepMenu=false){const s=data.seifim.find(s=>s
 }
 function openComment(n){const c=allComments().find(c=>c.n===Number(n));if(!c)return;currentComment=c.n;
   $('#commentContent').innerHTML=`<h2><span class="comment-letter" lang="he" dir="rtl">${c.he}</span> ${readerHTML(c.lemma)}</h2><p class="dialog-text">${readerHTML(c.ru)}</p>${showOriginal?original(c.lemmaHe+' — '+c.original):''}`;
+  if(window.Voice)Voice.comment(c);
   $('#commentPrevious').disabled=c.n===1;$('#commentNext').disabled=c.n===allComments().at(-1).n;
   if(!$('#commentDialog').open)$('#commentDialog').showModal();
   $('#commentDialog').scrollTop=0;

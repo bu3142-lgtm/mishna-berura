@@ -75,9 +75,14 @@
     cachedList(ch);
     const panel = document.createElement('div'); panel.className = 'vx-panel';
     if (REC) { const pr = document.createElement('div'); pr.className = 'vx-progress'; panel.append(pr); }
-    sifUnits(data, s).forEach(u => panel.append(mk('div', 'vx-unit', u.key, u.label, s.n)));
+    if (!REC) sifUnits(data, s).forEach(u => panel.append(mk('div', 'vx-unit', u.key, u.label, s.n)));
     const title = $('.law-title', reader);
     if (title) title.after(panel);
+    if (REC) {
+      reader.querySelectorAll('.law-pair').forEach(e => e.remove());
+      const secs = ['sa', 'rema'].map(k => lawSection(data, s, k)).filter(Boolean);
+      panel.after(...secs);
+    }
     reader.querySelectorAll('.comment').forEach(el => {
       let key, label;
       if (el.id === 'mb-introduction') { key = `${ch}_${s.n}_intro`; label = 'Вступление Мишны Бруры'; }
@@ -91,11 +96,35 @@
     refreshList(ch).then(() => { if (ctx && ctx.data.chapter === ch) paintAll(); });
   }
 
+  /* Страница записи: весь Шулхан Арух и всё Рамо пункта — каждый одним блоком (иврит + перевод) */
+  function lawSection(data, s, kind) {
+    const bs = s.blocks.filter(b => (kind === 'rema') === (b.kind === 'rema'));
+    if (!bs.length) return null;
+    const key = `${data.chapter}_${s.n}_${kind}`, label = kind === 'rema' ? 'Рамо' : 'Шулхан Арух';
+    const sec = document.createElement('section'); sec.className = 'vx-law' + (kind === 'rema' ? ' is-rema' : '');
+    sec.append(mk('div', 'vx-unit vx-law-head', key, label, s.n));
+    const he = document.createElement('div'); he.className = 'hebrew-original vx-he'; he.lang = 'he'; he.dir = 'rtl';
+    he.textContent = bs.map(b => b.he).join(' ');
+    sec.append(he);
+    bs.forEach(b => String(b.ru).split('\n\n').forEach((part, i, arr) => {
+      const p = document.createElement('p'); p.className = 'law-text' + (kind === 'rema' ? ' rema' : '');
+      p.innerHTML = (typeof marked === 'function' ? marked(part, true) : esc(part)) + (i === arr.length - 1 && b.source ? ` <span class="inline-source">(${esc(b.source)})</span>` : '');
+      sec.append(p);
+    }));
+    return sec;
+  }
+  function comment(c) {
+    if (!VOICE_URL || !ctx) return;
+    const box = $('#commentContent'); if (!box) return;
+    const el = mk('div', 'vx-unit vx-inline', `${ctx.data.chapter}_mb${c.n}`, 'Мишна Брура · ' + c.he, c.seif || ctx.s.n);
+    box.prepend(el); paint(el);
+  }
+
   /* ---------- отрисовка кнопок ---------- */
   function paintAll() {
     document.querySelectorAll('.vx-unit').forEach(paint);
     document.querySelectorAll('.vx-panel').forEach(p => {
-      p.hidden = ![...p.querySelectorAll('.vx-unit')].some(u => !u.hidden);
+      p.hidden = !REC && ![...p.querySelectorAll('.vx-unit')].some(u => !u.hidden);
       const pr = $('.vx-progress', p);
       if (pr && ctx) {
         const keys = allKeys(ctx.data), got = keys.filter(k => itemFor(k)).length;
@@ -108,8 +137,12 @@
     const key = el.dataset.vkey, c = $('.vx-ctrls', el), it = itemFor(key);
     const lock = !!(S.rec || S.pending || S.saving || S.error);
     let h = '';
-    if (S.rec && S.rec.key === key) h = '<span class="vx-live">● идёт запись</span>';
-    else if (S.pending && S.pending.key === key) h = '<span class="vx-note">запись ждёт решения внизу</span>';
+    if (S.rec && S.rec.key === key) h = `<span class="vx-live">● идёт запись</span><time class="vx-time">${fmt((Date.now() - S.rec.start) / 1000)}</time><button type="button" data-vxbar="stop">■ Остановить</button>`;
+    else if (S.pending && S.pending.key === key) {
+      if (S.saving) h = '<span class="vx-note">Сохраняю на Диск…</span>';
+      else if (S.error) h = `<span class="vx-note">${esc(S.error)}</span><button type="button" data-vxbar="retry">Повторить</button><button type="button" data-vxbar="drop">Не сохранять</button>`;
+      else h = `<span class="vx-note">Запомнить запись?</span><button type="button" data-vxbar="listen">${S.preview ? '❚❚ Стоп' : '▶ Послушать'}</button><button type="button" class="vx-yes" data-vxbar="yes">Да, запомнить</button><button type="button" data-vxbar="no">Нет</button>`;
+    }
     else {
       if (it) {
         const pl = S.playing && S.playing.key === key;
@@ -232,7 +265,7 @@
     rec.start(1000);
     S.rec = { key, title, start: Date.now(), recorder: rec };
     try { if (navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); } catch (e) { }
-    timer = setInterval(paintBar, 500);
+    timer = setInterval(() => { paintBar(); if (S.rec) document.querySelectorAll('.vx-time').forEach(t => { t.textContent = fmt((Date.now() - S.rec.start) / 1000); }); }, 500);
     paintAll();
   }
   function stopRec() { if (S.rec && S.rec.recorder.state !== 'inactive') S.rec.recorder.stop(); }
@@ -271,10 +304,10 @@
   async function dropPending() { stopPreview(); S.pending = null; S.error = ''; await idbClear(); paintAll(); }
   function stopPreview() { preview.pause(); S.preview = null; }
   function listen() {
-    if (S.preview) { stopPreview(); paintBar(); return; }
-    preview.src = URL.createObjectURL(S.pending.blob); S.preview = true; preview.play().catch(() => { S.preview = null; }); paintBar();
+    if (S.preview) { stopPreview(); paintAll(); return; }
+    preview.src = URL.createObjectURL(S.pending.blob); S.preview = true; preview.play().catch(() => { S.preview = null; }); paintAll();
   }
-  preview.onended = () => { S.preview = null; paintBar(); };
+  preview.onended = () => { S.preview = null; paintAll(); };
 
   async function deleteRec(el) {
     const key = el.dataset.vkey;
@@ -314,5 +347,5 @@
   window.addEventListener('beforeunload', e => { if (S.rec || S.saving) { e.preventDefault(); e.returnValue = ''; } });
   if (REC) idbGet().then(p => { if (p && !S.pending) { S.pending = p; paintAll(); } });
 
-  window.Voice = { render, enabled: !!VOICE_URL };
+  window.Voice = { render, comment, enabled: !!VOICE_URL };
 })();
