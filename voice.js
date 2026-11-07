@@ -162,7 +162,7 @@
     const key = el.dataset.vkey, c = $('.vx-ctrls', el), it = itemFor(key);
     const lock = !!(S.rec || S.pending || S.saving || S.error);
     let h = '';
-    if (S.rec && S.rec.key === key) h = `<span class="vx-live">● идёт запись</span><time class="vx-time">${fmt((Date.now() - S.rec.start) / 1000)}</time><button type="button" data-vxbar="stop">■ Остановить</button>`;
+    if (S.rec && S.rec.key === key) h = `<span class="vx-live">${S.rec.paused ? '❚❚ запись на паузе' : '● идёт запись'}</span><time class="vx-time">${fmt(elapsed())}</time>${pauseBtn()}<button type="button" data-vxbar="stop">■ Остановить</button>`;
     else if (S.pending && S.pending.key === key) {
       if (S.saving) h = '<span class="vx-note">Сохраняю на Диск…</span>';
       else if (S.error) h = `<span class="vx-note">${esc(S.error)}</span><button type="button" data-vxbar="retry">Повторить</button><button type="button" data-vxbar="drop">Не сохранять</button>`;
@@ -172,6 +172,7 @@
       if (it) {
         const pl = S.playing && S.playing.key === key;
         h += `<button type="button" data-vx="play">${pl ? (S.playing.loading ? '… загрузка' : S.playing.paused ? '▶ Продолжить' : '❚❚ Пауза') : '▶ Воспроизвести'}</button>`;
+        if (pl && !S.playing.loading) h += '<button type="button" data-vx="stopplay">■ Стоп</button>';
       }
       if (REC) h += it
         ? `<button type="button" data-vx="rec" ${lock ? 'disabled' : ''}>● Перезаписать</button><button type="button" data-vx="del" ${lock ? 'disabled' : ''}>🗑 Стереть</button>`
@@ -180,9 +181,12 @@
     c.innerHTML = h;
     el.hidden = !REC && !it;
   }
+  const elapsed = () => { const r = S.rec; if (!r) return 0; return ((r.paused ? r.pausedAt : Date.now()) - r.start - r.pausedTotal) / 1000; };
   const fmt = sec => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
   const fullLabel = (key, label, seif) => `Гл. ${chOf(key)}${seif ? ', пункт ' + seif : ''} · ${label}`;
 
+  const pauseBtn = () => (S.rec && typeof S.rec.recorder.pause === 'function')
+    ? `<button type="button" data-vxbar="pause">${S.rec.paused ? '▶ Продолжить запись' : '❚❚ Пауза'}</button>` : '';
   function ensureBar() {
     if (bar || !REC) return;
     bar = document.createElement('div'); bar.id = 'vxBar'; bar.hidden = true;
@@ -192,7 +196,7 @@
     if (!REC) return;
     ensureBar();
     let h = '';
-    if (S.rec) h = `<span class="vx-live">● Запись</span><span>${esc(S.rec.title)}</span><time>${fmt((Date.now() - S.rec.start) / 1000)}</time><button type="button" data-vxbar="stop">■ Остановить</button>`;
+    if (S.rec) h = `<span class="vx-live">${S.rec.paused ? '❚❚ Пауза' : '● Запись'}</span><span>${esc(S.rec.title)}</span><time>${fmt(elapsed())}</time>${pauseBtn()}<button type="button" data-vxbar="stop">■ Остановить</button>`;
     else if (S.saving) h = `<span>Сохраняю на Диск…</span><span>${esc(S.pending.title)}</span>`;
     else if (S.error) h = `<span>${esc(S.error)}</span><button type="button" data-vxbar="retry">Повторить</button><button type="button" data-vxbar="drop">Не сохранять</button>`;
     else if (S.pending) h = `<span>Запомнить запись?</span><span>${esc(S.pending.title)} · ${fmt(S.pending.dur)}</span><button type="button" data-vxbar="listen">${S.preview ? '❚❚ Стоп' : '▶ Послушать'}</button><button type="button" class="vx-yes" data-vxbar="yes">Да, запомнить</button><button type="button" data-vxbar="no">Нет</button>`;
@@ -228,6 +232,16 @@
     }
     const u = URL.createObjectURL(blob); urls.set(ck, u); return u;
   }
+  function setMediaSession(key) {
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: 'Мишна Брура · глава ' + chOf(key), artist: 'Озвучка' });
+      navigator.mediaSession.setActionHandler('play', () => audio.play());
+      navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+      navigator.mediaSession.setActionHandler('seekbackward', () => { audio.currentTime = Math.max(0, audio.currentTime - 10); });
+      navigator.mediaSession.setActionHandler('seekforward', () => { audio.currentTime = Math.min(audio.duration || 1e9, audio.currentTime + 10); });
+    } catch (e) { }
+  }
   function stopPlay() { audio.pause(); S.playing = null; }
   async function togglePlay(key) {
     if (S.playing && S.playing.key === key) {
@@ -239,6 +253,7 @@
     try {
       audio.src = await audioURL(key);
       S.playing.loading = false;
+      setMediaSession(key);
       await audio.play();
     } catch (e) { S.playing = null; toast('Не удалось воспроизвести запись. Проверьте соединение.'); }
     paintAll();
@@ -279,7 +294,7 @@
     rec.onstop = async () => {
       stream.getTracks().forEach(t => t.stop());
       clearInterval(timer); if (wake) { try { wake.release(); } catch (e) { } wake = null; }
-      const dur = (Date.now() - S.rec.start) / 1000, type = (rec.mimeType || mime || 'audio/mp4').split(';')[0];
+      const dur = elapsed(), type = (rec.mimeType || mime || 'audio/mp4').split(';')[0];
       S.rec = null;
       const blob = new Blob(chunks, { type });
       if (dur < 1 || !blob.size) { toast('Запись слишком короткая — не сохранена.'); paintAll(); return; }
@@ -288,9 +303,17 @@
       paintAll();
     };
     rec.start(1000);
-    S.rec = { key, title, start: Date.now(), recorder: rec };
+    S.rec = { key, title, start: Date.now(), recorder: rec, paused: false, pausedAt: 0, pausedTotal: 0 };
     try { if (navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); } catch (e) { }
-    timer = setInterval(() => { paintBar(); if (S.rec) document.querySelectorAll('.vx-time').forEach(t => { t.textContent = fmt((Date.now() - S.rec.start) / 1000); }); }, 500);
+    timer = setInterval(() => { paintBar(); if (S.rec) document.querySelectorAll('.vx-time').forEach(t => { t.textContent = fmt(elapsed()); }); }, 500);
+    paintAll();
+  }
+  function pauseRec() {
+    const r = S.rec; if (!r || typeof r.recorder.pause !== 'function') return;
+    try {
+      if (r.paused) { r.recorder.resume(); r.pausedTotal += Date.now() - r.pausedAt; r.paused = false; }
+      else if (r.recorder.state === 'recording') { r.recorder.pause(); r.pausedAt = Date.now(); r.paused = true; }
+    } catch (e) { toast('Не удалось поставить запись на паузу.'); }
     paintAll();
   }
   function stopRec() { if (S.rec && S.rec.recorder.state !== 'inactive') S.rec.recorder.stop(); }
@@ -361,11 +384,12 @@
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-vx],[data-vxbar]'); if (!b) return;
     if (b.dataset.vxbar) {
-      ({ stop: stopRec, yes: savePending, retry: savePending, no: dropPending, drop: dropPending, listen })[b.dataset.vxbar]();
+      ({ stop: stopRec, pause: pauseRec, yes: savePending, retry: savePending, no: dropPending, drop: dropPending, listen })[b.dataset.vxbar]();
       return;
     }
     const el = b.closest('.vx-unit'), key = el.dataset.vkey;
     if (b.dataset.vx === 'play') togglePlay(key);
+    else if (b.dataset.vx === 'stopplay') { stopPlay(); paintAll(); }
     else if (b.dataset.vx === 'rec') startRec(el);
     else if (b.dataset.vx === 'del') deleteRec(el);
   });
