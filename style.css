@@ -100,3 +100,4 @@ body:has(#vxBar:not([hidden])) #main{padding-bottom:110px}
 .letter-figure{margin:14px auto 18px;text-align:center}.letter-figure img{max-width:min(100%,300px);height:auto;border:1px solid #d7dacc;border-radius:8px;background:#fff}.letter-figure figcaption{font-size:calc(var(--reader-size) * .72);color:var(--muted);margin-top:6px;line-height:1.5}.fig-ref{font-size:.7em;font-weight:700;color:#8a6d2f;margin:0 1px}.appendix-para{margin-bottom:14px}@media print{.letter-figure img{max-width:200px}}
 
 .shaar-block{margin:10px 0 18px;padding:8px 12px;border-inline-start:3px solid #b9a36a;background:rgba(185,163,106,.08);border-radius:6px}.shaar-heading{font-size:calc(var(--reader-size) * .9);margin:2px 0 6px;color:#8a6d2f}.shaar-note{margin-bottom:6px;font-size:calc(var(--reader-size) * .92)}
+.chapter-nav[hidden]{display:none!important}
