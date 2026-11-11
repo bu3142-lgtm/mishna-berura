@@ -159,7 +159,7 @@ const MENU_SECTIONS=[
 [417,428,'Рош ходеш','ראש חודש'],[429,494,'Песах','פסח'],[495,529,'Йом тов','יום טוב'],[530,548,'Холь ѓа-моэд','חול המועד'],
 [549,561,'Девятое ава и прочие посты','תשעה באב ושאר תעניות'],[562,580,'Пост (Таанит)','תענית'],[581,603,'Рош ѓа-шана','ראש השנה'],
 [604,624,'Йом Кипур','יום הכיפורים'],[625,644,'Суккот','סוכה'],[645,669,'Лулав','לולב'],[670,685,'Ханука','חנוכה'],[686,697,'Мегила и Пурим','מגילה ופורים']
-].map(([from,to,ru,he])=>({from,to,ru:from===1?ru:'Законы '+ru.charAt(0).toLowerCase()+ru.slice(1),he}));
+].map(([from,to,ru,he])=>({from,to,ru:from===1?ru:'Законы '+ru,he}));
 function sectionOf(ch){return MENU_SECTIONS.find(s=>ch>=s.from&&ch<=s.to)||{from:ch,to:ch,ru:'Русское издание',he:''}}
 function initSections(){
   const sb=document.getElementById('sidebar');if(!sb||sb.dataset.sections)return;sb.dataset.sections='1';
