@@ -160,7 +160,6 @@ const MENU_SECTIONS=[
 [549,561,'Девятое ава и прочие посты','תשעה באב ושאר תעניות'],[562,580,'Пост (Таанит)','תענית'],[581,603,'Рош ѓа-шана','ראש השנה'],
 [604,624,'Йом Кипур','יום הכיפורים'],[625,644,'Суккот','סוכה'],[645,669,'Лулав','לולב'],[670,685,'Ханука','חנוכה'],[686,697,'Мегила и Пурим','מגילה ופורים']
 ].map(([from,to,ru,he])=>({from,to,ru:from===1?ru:'Законы '+ru.charAt(0).toLowerCase()+ru.slice(1),he}));
-function hebNum(n){const L=[[400,'ת'],[300,'ש'],[200,'ר'],[100,'ק'],[90,'צ'],[80,'פ'],[70,'ע'],[60,'ס'],[50,'נ'],[40,'מ'],[30,'ל'],[20,'כ'],[10,'י'],[9,'ט'],[8,'ח'],[7,'ז'],[6,'ו'],[5,'ה'],[4,'ד'],[3,'ג'],[2,'ב'],[1,'א']];let r='';n%=1000;if(n===15)return 'ט"ו';if(n===16)return 'ט"ז';for(const [v,c] of L){while(n>=v){r+=c;n-=v}}return r.length>1?r.slice(0,-1)+'"'+r.slice(-1):r+"'"}
 function sectionOf(ch){return MENU_SECTIONS.find(s=>ch>=s.from&&ch<=s.to)||{from:ch,to:ch,ru:'Русское издание',he:''}}
 function initSections(){
   const sb=document.getElementById('sidebar');if(!sb||sb.dataset.sections)return;sb.dataset.sections='1';
@@ -176,9 +175,6 @@ function initSections(){
     body.className='section-body chapter-list';body.hidden=true;
     const cap=document.createElement('div');cap.className='side-caption section-caption'+(filled?'':' empty');cap.title='הלכות '+s.he;
     const t=document.createElement('span');t.className='sec-title';t.textContent=s.ru;
-    if(s.he){const h=document.createElement('span');h.className='sec-he';h.dir='rtl';h.lang='he';
-      const a=document.createElement('span');a.textContent=s.from===s.to?hebNum(s.from):hebNum(s.from)+' - '+hebNum(s.to);
-      const b=document.createElement('span');b.textContent='הלכות '+s.he;h.append(a,b);t.append(h)}
     const r=document.createElement('span');r.className='sec-range';r.textContent=s.from===s.to?String(s.from):s.from+'–'+s.to;
     cap.append(t,r);
     if(filled){

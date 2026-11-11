@@ -113,4 +113,3 @@ body:has(#vxBar:not([hidden])) #main{padding-bottom:110px}
 
 .section-caption.empty{cursor:default;opacity:.45}.section-caption.empty:hover{background:transparent}.section-caption.empty::after{content:''}
 
-.section-caption .sec-title{display:flex;flex-direction:column;gap:4px}.section-caption .sec-he{display:flex;flex-direction:column;align-items:flex-end;gap:1px;font-family:BookSerif,Georgia,serif;font-size:12px;letter-spacing:0;line-height:1.35;color:#7a8473;text-align:left;direction:rtl}.section-caption .sec-he span{display:block}
