@@ -110,3 +110,5 @@ body:has(#vxBar:not([hidden])) #main{padding-bottom:110px}
 .section-caption[aria-expanded=true]::after{content:'▾'}
 .section-caption .sec-title{flex:1}.section-caption .sec-range{font-size:9px;letter-spacing:.5px;color:#9aa093}
 .section-body{flex-shrink:0;margin-bottom:6px}.section-body[hidden]{display:none}
+
+.section-caption.empty{cursor:default;opacity:.45}.section-caption.empty:hover{background:transparent}.section-caption.empty::after{content:''}
