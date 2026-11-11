@@ -89,6 +89,7 @@ async function loadChapter(chapter,initialSeif,expand=false,push=false){
   $('#allRangeLabel').textContent=`Вся глава ${data.chapter} · ${data.seifim.length} ${plural(data.seifim.length,'пункт','пункта','пунктов')}`;
   document.title=`Мишна Брура · ${data.chapter} · Русское издание`;
   document.querySelectorAll('[data-chapter]').forEach(b=>{const yes=Number(b.dataset.chapter)===data.chapter;b.classList.toggle('selected',yes);b.setAttribute('aria-pressed',String(yes))});
+  openSectionOf(data.chapter);
   $('.seif-nav').innerHTML=data.seifim.map(s=>`<button data-select="${s.n}"><span lang="he">${s.he}</span>Пункт ${s.n}<small>${escapeHTML(s.topic)}</small></button>`).join('');
   document.querySelector(`[data-chapter="${data.chapter}"]`).after($('#seifNav'));
   setChapterExpanded(expand);
@@ -142,4 +143,35 @@ async function init(){try{
   if(MB_REC){$('#lawHeBtn').setAttribute('aria-pressed','true');$('#lawHeBtn').textContent='Скрыть Шулхан Арух и Рамо на иврите';$('#originalBtn').setAttribute('aria-pressed','true');$('#originalBtn').textContent='Скрыть Мишну Бруру и Биур Ѓалаха на иврите'}
   if(!MB_REC&&'serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 }catch(e){$('#reader').innerHTML='<p class="law-text">Не удалось загрузить текст. Обновите страницу, когда появится соединение.</p>'}}
+/* Меню: разделы свёрнуты, главы раскрываются по нажатию на название раздела */
+function initSections(){
+  const sb=document.getElementById('sidebar');if(!sb||sb.dataset.sections)return;sb.dataset.sections='1';
+  const caps=[...sb.querySelectorAll('.section-caption')];
+  const btns=[...sb.querySelectorAll('.chapter-nav[data-chapter]')];
+  const seifNav=document.getElementById('seifNav');
+  const bottom=sb.querySelector('.side-bottom');
+  const oldLists=[...sb.querySelectorAll('.chapter-list')];
+  const bodies=caps.map(()=>{const d=document.createElement('div');d.className='section-body chapter-list';d.hidden=true;return d});
+  btns.forEach(b=>{let k=-1;caps.forEach((c,i)=>{if(c.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING)k=i});if(k>=0)bodies[k].appendChild(b)});
+  caps.forEach((cap,i)=>{
+    const body=bodies[i];
+    const nums=[...body.querySelectorAll('[data-chapter]')].map(b=>Number(b.dataset.chapter));
+    const title=cap.textContent.trim();cap.textContent='';
+    const t=document.createElement('span');t.className='sec-title';t.textContent=title;
+    const r=document.createElement('span');r.className='sec-range';r.textContent=nums.length?(nums[0]===nums[nums.length-1]?String(nums[0]):nums[0]+'–'+nums[nums.length-1]):'';
+    cap.append(t,r);
+    cap.setAttribute('role','button');cap.setAttribute('tabindex','0');cap.setAttribute('aria-expanded','false');
+    const toggle=()=>{const open=body.hidden;body.hidden=!open;cap.setAttribute('aria-expanded',String(open))};
+    cap.onclick=toggle;cap.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle()}};
+    sb.append(cap,body);
+  });
+  if(seifNav)sb.append(seifNav);if(bottom)sb.append(bottom);
+  oldLists.forEach(l=>{if(!l.querySelector('[data-chapter],#seifNav'))l.remove()});
+}
+function openSectionOf(ch){
+  initSections();
+  const b=document.querySelector(`.section-body [data-chapter="${ch}"]`);if(!b)return;
+  const body=b.closest('.section-body');if(body.hidden){body.hidden=false;body.previousElementSibling.setAttribute('aria-expanded','true')}
+}
+initSections();
 init();

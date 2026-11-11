@@ -103,3 +103,10 @@ body:has(#vxBar:not([hidden])) #main{padding-bottom:110px}
 .chapter-nav[hidden]{display:none!important}
 
 .shaar-ref{font-size:.62em;line-height:0;vertical-align:super;color:#8a6d2f;font-weight:600;margin-inline:1px;white-space:nowrap}.shaar-ref::before{content:'('}.shaar-ref::after{content:')'}.seif-shaar{margin-top:18px}.shaar-edit-note{font-size:.88em;color:#7e8177;font-style:italic}@media print{.shaar-ref{color:#000}.seif-shaar{break-inside:auto}}
+
+.sidebar .section-caption{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;user-select:none;margin:6px 0 0;padding:11px 10px;border-radius:6px;font-size:10px;letter-spacing:1.4px;color:#5f6a58;flex-shrink:0}
+.section-caption:hover,.section-caption:focus-visible{background:#e1e6da;outline:0}
+.section-caption::after{content:'▸';font-size:11px;letter-spacing:0;color:#858c7f;order:3}
+.section-caption[aria-expanded=true]::after{content:'▾'}
+.section-caption .sec-title{flex:1}.section-caption .sec-range{font-size:9px;letter-spacing:.5px;color:#9aa093}
+.section-body{flex-shrink:0;margin-bottom:6px}.section-body[hidden]{display:none}
