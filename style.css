@@ -113,3 +113,6 @@ body:has(#vxBar:not([hidden])) #main{padding-bottom:110px}
 
 .section-caption.empty{cursor:default;opacity:.45}.section-caption.empty:hover{background:transparent}.section-caption.empty::after{content:''}
 
+
+/* Мобильное меню открывается под шапкой, шапка остаётся видимой */
+@media(max-width:850px){.topbar{position:sticky;top:0;z-index:30;background:var(--bg)}.sidebar{top:57px;bottom:0;height:auto}.shade:not([hidden]){top:57px}}
